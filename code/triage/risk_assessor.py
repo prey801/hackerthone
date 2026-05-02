@@ -1,5 +1,6 @@
-CONFIDENCE_THRESHOLD = 0.35  # minimum retrieval score to attempt an LLM response
+import re
 
+CONFIDENCE_THRESHOLD = 0.35  # minimum retrieval score to attempt an LLM response
 
 def assess_risk(issue_text, domain, max_retrieval_score):
     """
@@ -20,7 +21,8 @@ def assess_risk(issue_text, domain, max_retrieval_score):
 
     for category, patterns in risk_patterns.items():
         for pattern in patterns:
-            if pattern in normalized_issue:
+            # Use word boundaries to avoid substring matches
+            if re.search(rf"\b{re.escape(pattern)}\b", normalized_issue):
                 return {"should_escalate": True, "reason": f"Risk triggered: {category} ({pattern})", "risk_level": "high"}
 
     # Check retrieval confidence — no corpus coverage means we cannot answer reliably
