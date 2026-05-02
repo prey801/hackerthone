@@ -79,14 +79,19 @@ class Pipeline:
                     f"and respond shortly."
                 )
             
-            # Map domain to a clean product_area format if possible, or leave as string
-            product_area = domain.capitalize() if domain else "Unknown"
+            # Map domain to a clean product_area format using a mapping dictionary
+            domain_display = {
+                "hackerrank": "HackerRank",
+                "claude": "Claude",
+                "visa": "Visa"
+            }
+            product_area = domain_display.get(domain, domain or "Unknown")
 
             output = {
                 "status": "escalated",
                 "product_area": product_area,
                 "response": response_message,
-                "justification": f"Category: {risk_info.get('risk_category', 'unknown')} | Reason: {risk_info['reason']}",
+                "justification": risk_info["reason"],  # just the reason, no category prefix
                 "request_type": "product_issue"
             }
             return output, context

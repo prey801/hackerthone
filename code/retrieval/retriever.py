@@ -159,6 +159,6 @@ class HybridRetriever:
             results.sort(key=lambda x: x['ce_score'], reverse=True)
 
         results = results[:top_k]
-        max_score = results[0].get('ce_score', results[0]['score']) if results else 0.0
+        max_score = results[0]['score'] if results else 0.0
         return results, max_score
 

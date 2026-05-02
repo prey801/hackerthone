@@ -1,7 +1,7 @@
 import re
 import numpy as np
 
-CONFIDENCE_THRESHOLD = 0.0  # Cross-Encoder logit score threshold (<0 is irrelevant)
+CONFIDENCE_THRESHOLD = 0.35  # minimum retrieval score to attempt an LLM response
 
 def assess_risk(issue_text, domain, max_retrieval_score, embedder=None):
     """
