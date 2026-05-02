@@ -42,14 +42,20 @@ cp .env.example .env
 
 ## Usage
 
-### Interactive mode (single ticket)
+### Quick Start (Recommended)
+You can run the entire batch pipeline (including environment setup and dependency installation) with a single command from the project root:
+```bash
+./run.sh
+```
+
+### Manual Interactive mode (single ticket)
 ```bash
 cd code/
 source .venv/bin/activate
 python main.py
 ```
 
-### Batch mode (generate output.csv)
+### Manual Batch mode (generate output.csv)
 ```bash
 cd code/
 source .venv/bin/activate
