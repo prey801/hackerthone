@@ -18,7 +18,8 @@ Answer ONLY using the provided support documentation excerpts.
 Do NOT use any outside knowledge or invent policies.
 If you use information from the provided documentation, you MUST reference the source (e.g., the source filename) in your response.
 If the documentation partially covers the issue, reply with what is covered and note any gaps. Only escalate if the documentation has NO relevant information at all, or if a risk trigger fires. Do not escalate simply because the answer is incomplete. If you are providing actionable next steps or troubleshooting info, the status MUST be 'replied'.
-If you note any gaps or inform the user that their specific issue is not fully covered, you MUST append this exact sentence to the end of your response: "For further assistance, please contact support@hackerrank.com / help@hackerrank.com / your account manager."
+If you note any gaps or inform the user that their specific issue is not fully covered, you MUST append this exact sentence to the end of your response: "For further assistance, please contact {contact_info}."
+If the issue involves identity theft or fraud on a Visa card, explicitly state "contact your bank immediately" in your response.
 
 The risk assessor has flagged this ticket as: {risk_level} risk.
 Escalation required: {escalate_required}. Reason: {escalate_reason}.
@@ -56,7 +57,7 @@ class Responder:
         self._keys = _load_api_keys()
         self._key_idx = 0
         self._client = genai.Client(api_key=self._keys[0])
-        self.model_name = "gemini-2.5-flash-lite"
+        self.model_name = "gemini-2.5-flash"
         print(f"[Responder] Loaded {len(self._keys)} API key(s). Using key 1/{len(self._keys)}.")
 
     def _next_key(self):
@@ -73,11 +74,20 @@ class Responder:
         Calls Gemini to generate the final structured triage response.
         Rotates through API keys on 429 quota errors. Retries on 503 overload.
         """
+        contact_by_domain = {
+            "hackerrank": "help@hackerrank.com or support@hackerrank.com",
+            "claude": "support@anthropic.com or visit support.claude.com",
+            "visa": "your card issuer or Visa Global Customer Assistance at +1-800-847-2911"
+        }
+        domain_key = domain.lower() if domain else "hackerrank"
+        contact_info = contact_by_domain.get(domain_key, contact_by_domain["hackerrank"])
+
         system_instruction = SYSTEM_TEMPLATE.format(
             domain=domain if domain else "multiple products",
             risk_level=risk_info["risk_level"],
             escalate_required="yes" if risk_info["should_escalate"] else "no",
-            escalate_reason=risk_info["reason"]
+            escalate_reason=risk_info["reason"],
+            contact_info=contact_info
         )
 
         corpus_context = ""
