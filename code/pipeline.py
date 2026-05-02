@@ -52,30 +52,42 @@ class Pipeline:
 
         # 4b. Escalation gate — short-circuit before touching the LLM
         if risk_info["should_escalate"]:
-            category = risk_info.get("risk_category")
+            # Build a human-readable reason
+            reason = risk_info["reason"]
             
-            risk_to_type = {
-                "financial_fraud": "product_issue",
-                "assessment_integrity": "product_issue", 
-                "billing_disputes": "product_issue",
-                "security": "bug",
-                "legal_privacy": "product_issue",
-                "account_access": "product_issue",
-                "low_confidence": "product_issue"
+            escalation_messages = {
+                "financial_fraud": "Your report of unauthorized or fraudulent activity has been flagged for urgent review. Please also contact your bank or card issuer directly for immediate assistance.",
+                "account_access": "Your account access issue has been flagged for review. A human agent will follow up to help restore your access.",
+                "assessment_integrity": "Your concern regarding assessment integrity has been escalated for review by our team.",
+                "billing_disputes": "Your billing dispute has been flagged for human review. A support agent will follow up to assist with your request.",
+                "security": "Your security concern has been escalated to our security team for immediate review.",
+                "legal_privacy": "Your request involving legal or privacy matters has been escalated to the appropriate team.",
             }
-            req_type = risk_to_type.get(category, "product_issue")
             
-            if category == "low_confidence":
-                response_msg = "We couldn't find specific documentation covering your issue. A human agent will review and respond shortly."
-            else:
-                response_msg = "This ticket has been escalated to a human agent for review due to risk policies."
+            # Match reason to message
+            response_message = "Your request has been escalated to a human agent who will follow up shortly."
+            for category, message in escalation_messages.items():
+                if category in reason:
+                    response_message = message
+                    break
+            
+            # Low confidence escalation gets its own message        
+            if "No corpus coverage" in reason:
+                response_message = (
+                    f"We couldn't find specific documentation covering your issue with "
+                    f"{domain.capitalize() if domain else 'this product'}. A human agent will review your request "
+                    f"and respond shortly."
+                )
+            
+            # Map domain to a clean product_area format if possible, or leave as string
+            product_area = domain.capitalize() if domain else "Unknown"
 
             output = {
                 "status": "escalated",
-                "product_area": domain or "unknown",
-                "response": response_msg,
-                "justification": risk_info["reason"],
-                "request_type": req_type
+                "product_area": product_area,
+                "response": response_message,
+                "justification": f"Category: {risk_info.get('risk_category', 'unknown')} | Reason: {risk_info['reason']}",
+                "request_type": "product_issue"
             }
             return output, context
 

@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 # Structured output schema
 class TriageResponse(BaseModel):
     status: str = Field(description="Must be exactly 'replied' or 'escalated'")
-    product_area: str = Field(description="The specific support category or product area (e.g. 'Billing', 'Account Access'). DO NOT use file paths for this field.")
+    product_area: str = Field(description="Must be a consistent, human-readable category in the format 'Domain / Category' (e.g., 'HackerRank / Coding Challenges', 'Visa / Consumer Fraud'). Do NOT use snake_case, underscores, or file paths.")
     response: str = Field(description="The user-facing response grounded ONLY in the corpus, or a clear escalation message. You MUST reference the source documentation (e.g. filename or source path) if you use information from it.")
     justification: str = Field(description="Concise routing rationale")
     request_type: str = Field(description="Must be one of: 'product_issue', 'feature_request', 'bug', 'invalid'")
@@ -17,11 +17,11 @@ SYSTEM_TEMPLATE = """You are a support triage agent for {domain}.
 Answer ONLY using the provided support documentation excerpts.
 Do NOT use any outside knowledge or invent policies.
 If you use information from the provided documentation, you MUST reference the source (e.g., the source filename) in your response.
-If the documentation does not cover the issue, say so clearly and escalate.
+If the documentation does not contain specific steps to resolve the issue, you MUST set 'status' to 'escalated' and inform the user that a human agent will assist them. Never set 'status' to 'replied' if you cannot provide a complete solution from the documentation.
 
 The risk assessor has flagged this ticket as: {risk_level} risk.
 Escalation required: {escalate_required}. Reason: {escalate_reason}.
-If escalation is required, the status MUST be 'escalated', and you should provide a polite response indicating the issue has been escalated to a human agent.
+If escalation is required, the status MUST be 'escalated', and you should provide a helpful, polite response acknowledging the specific issue (e.g., "We've identified your request involves [Issue]...") and indicating it has been escalated to a human agent for review. Do not provide a generic "This ticket has been escalated" message.
 
 Strict output values:
 - status: exactly 'replied' or 'escalated'
