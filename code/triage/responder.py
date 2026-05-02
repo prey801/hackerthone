@@ -79,6 +79,9 @@ class Responder:
             "claude": "support@anthropic.com or visit support.claude.com",
             "visa": "your card issuer or Visa Global Customer Assistance at +1-800-847-2911"
         }
+        if not domain and chunks:
+            domain = chunks[0].get("domain")
+
         domain_key = domain.lower() if domain else "hackerrank"
         contact_info = contact_by_domain.get(domain_key, contact_by_domain["hackerrank"])
 
