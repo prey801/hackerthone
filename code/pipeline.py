@@ -49,8 +49,19 @@ class Pipeline:
         # 4. Assess Risk
         risk_info = assess_risk(issue, domain, max_score)
         context["risk_info"] = risk_info
-        
+
+        # 4b. Escalation gate — short-circuit before touching the LLM
+        if risk_info["should_escalate"]:
+            output = {
+                "status": "escalated",
+                "product_area": domain or "unknown",
+                "response": "This ticket has been escalated to a human agent for review.",
+                "justification": risk_info["reason"],
+                "request_type": "escalation"
+            }
+            return output, context
+
         # 5. Generate Response via LLM
         llm_response = self.responder.generate_response(issue, subject, domain, chunks, risk_info)
-        
+
         return llm_response, context

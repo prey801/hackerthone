@@ -1,10 +1,13 @@
+CONFIDENCE_THRESHOLD = 0.35  # minimum retrieval score to attempt an LLM response
+
+
 def assess_risk(issue_text, domain, max_retrieval_score):
     """
     Rule-based escalation triggers.
     Returns: {should_escalate: bool, reason: str, risk_level: str}
     """
     normalized_issue = str(issue_text).lower()
-    
+
     # Trigger Categories
     risk_patterns = {
         "financial_fraud": ["unauthorized charge", "fraudulent", "stolen card", "dispute", "stolen in", "lost my card", "fraud"],
@@ -14,14 +17,18 @@ def assess_risk(issue_text, domain, max_retrieval_score):
         "billing_disputes": ["refund", "wrong charge", "double charged"],
         "security": ["hacked", "breach", "phishing", "compromised"]
     }
-    
+
     for category, patterns in risk_patterns.items():
         for pattern in patterns:
             if pattern in normalized_issue:
                 return {"should_escalate": True, "reason": f"Risk triggered: {category} ({pattern})", "risk_level": "high"}
-                
-    # Check retrieval confidence
-    if max_retrieval_score < 0.35:
-        return {"should_escalate": True, "reason": f"Low retrieval confidence ({max_retrieval_score:.2f})", "risk_level": "medium"}
-        
+
+    # Check retrieval confidence — no corpus coverage means we cannot answer reliably
+    if max_retrieval_score < CONFIDENCE_THRESHOLD:
+        return {
+            "should_escalate": True,
+            "reason": f"No corpus coverage for this issue (max_score={max_retrieval_score:.2f} < {CONFIDENCE_THRESHOLD})",
+            "risk_level": "medium"
+        }
+
     return {"should_escalate": False, "reason": "No risks detected", "risk_level": "low"}
