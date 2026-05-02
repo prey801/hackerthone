@@ -1,5 +1,7 @@
 import faiss
 import numpy as np
+import os
+import pickle
 
 class VectorIndex:
     def __init__(self, embedder):
@@ -22,6 +24,16 @@ class VectorIndex:
         # IndexFlatIP is inner product; with normalized vectors it's cosine similarity
         self.index = faiss.IndexFlatIP(dimension)
         self.index.add(embeddings)
+        
+    def save(self, cache_dir):
+        with open(os.path.join(cache_dir, "vector_chunks.pkl"), "wb") as f:
+            pickle.dump(self.chunks, f)
+        faiss.write_index(self.index, os.path.join(cache_dir, "vector.index"))
+        
+    def load(self, cache_dir):
+        with open(os.path.join(cache_dir, "vector_chunks.pkl"), "rb") as f:
+            self.chunks = pickle.load(f)
+        self.index = faiss.read_index(os.path.join(cache_dir, "vector.index"))
         
     def get_scores(self, query):
         if not self.index:

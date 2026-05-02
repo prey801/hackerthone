@@ -1,8 +1,10 @@
-def detect_domain(company_field, issue_text, retriever=None):
+import numpy as np
+
+def detect_domain(company_field, issue_text, retriever=None, embedder=None):
     """
     Priority order:
     1. If company in {HackerRank, Claude, Visa} -> use directly
-    2. If company = None or 'none': infer from keyword signals
+    2. If company = None or 'none': infer from keyword signals and semantic similarity
     """
     valid_domains = {"hackerrank", "claude", "visa"}
     
@@ -11,11 +13,31 @@ def detect_domain(company_field, issue_text, retriever=None):
         normalized_company = str(company_field).strip().lower()
         if normalized_company in valid_domains:
             return normalized_company, 1.0
-        # 'none' string or 'nan' from pandas -> fall through to inference
             
-    # 2. Keyword signals fallback
     normalized_issue = str(issue_text).lower()
     
+    # Semantic similarity fallback
+    if embedder is not None:
+        domain_descriptions = {
+            "visa": "credit card, payment processing, fraud, bank transaction, refund, merchant cheque.",
+            "hackerrank": "coding test assessment, compiler runtime error, candidate interview, proctoring, submission score.",
+            "claude": "AI language model, chat conversation, API token limit, bedrock workspace, prompt instructions."
+        }
+        domain_keys = list(domain_descriptions.keys())
+        descriptions = list(domain_descriptions.values())
+        
+        issue_emb = embedder.encode([normalized_issue])[0]
+        desc_embs = embedder.encode(descriptions)
+        
+        issue_norm = issue_emb / np.linalg.norm(issue_emb)
+        desc_norms = desc_embs / np.linalg.norm(desc_embs, axis=1)[:, np.newaxis]
+        similarities = np.dot(desc_norms, issue_norm)
+        
+        best_idx = np.argmax(similarities)
+        if similarities[best_idx] > 0.25:
+            return domain_keys[best_idx], float(similarities[best_idx])
+            
+    # Original Keyword signals fallback
     visa_terms = [
         "card", "payment", "cheque", "stolen card", "fraud", "charge", "bank",
         "visa", "refund", "merchant", "transaction", "cash", "atm", "travel",

@@ -9,10 +9,10 @@ corpus/loader.py        → Loads + chunks data/ markdown files into segments
 retrieval/embedder.py   → sentence-transformers wrapper (all-MiniLM-L6-v2)
 retrieval/bm25_index.py → BM25 keyword index
 retrieval/vector_index.py → FAISS dense vector index
-retrieval/retriever.py  → Hybrid search (40% BM25 + 60% Dense), top-K chunks
+retrieval/retriever.py  → Hybrid search + Cross-Encoder Reranking (ms-marco) + Local Caching
 triage/input_validator.py → Prompt injection & invalid input detection
-triage/domain_detector.py → Detect HackerRank / Claude / Visa from company or keywords
-triage/risk_assessor.py → Rule-based escalation triggers (fraud, legal, security, etc.)
+triage/domain_detector.py → Detect HackerRank/Claude/Visa using Semantic Similarity & Keywords
+triage/risk_assessor.py → Semantic + Rule-based escalation triggers (fraud, legal, security, etc.)
 triage/responder.py     → Gemini API → structured JSON output (pydantic schema)
 pipeline.py             → Orchestration: validate → detect → retrieve → risk → respond
 run_batch.py            → Batch runner → output.csv
@@ -79,9 +79,13 @@ Each row in `output.csv` contains:
 
 ## Design Decisions
 
-- **Hybrid Retrieval**: BM25 (40%) + FAISS dense vectors (60%) for best of keyword + semantic matching.
-- **Rule-based risk first**: Escalation triggers run *before* the LLM, so high-risk cases (fraud, GDPR, security) are always escalated regardless of LLM output.
+- **Advanced Retrieval**: A 3-stage pipeline: 
+  1. Hybrid retrieval combining improved BM25 (stripping punctuation for better recall) and FAISS dense vectors.
+  2. Cross-Encoder Reranking (`ms-marco-MiniLM-L-6-v2`) to accurately rank context chunks for the LLM.
+- **Index Caching**: Generating FAISS embeddings and BM25 indices is time-consuming. We cache these indices to disk to reduce startup time from minutes to milliseconds, ensuring efficient batch operations.
+- **Semantic Risk & Domain Gates**: Instead of just using brittle regexes, we use cosine similarity against the `Embedder` to semantically match ticket language to domain and risk profiles. This protects against paraphrasing and typos.
+- **Pre-LLM Escalation**: High-risk cases (fraud, GDPR, security) are escalated *before* LLM generation, ensuring compliance with strict safety policies without relying on the LLM.
 - **Structured output**: Pydantic schema passed to Gemini ensures valid JSON with correct field values every time.
-- **Injection detection**: Multilingual patterns (English + French/Spanish) catch adversarial inputs like ticket #21.
+- **Injection detection**: Multilingual patterns (English + French/Spanish) catch adversarial inputs.
 - **Determinism**: `random.seed(42)` and `temperature=0.0` ensure reproducible outputs.
-- **No hallucinations**: The system prompt explicitly forbids outside knowledge; if retrieval is low-confidence (score < 0.35), the ticket is escalated.
+- **No hallucinations**: The system prompt explicitly forbids outside knowledge and forces the LLM to cite the `chunk['source']` filepath for traceability.

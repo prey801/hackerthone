@@ -4,6 +4,8 @@ from .embedder import Embedder
 from .bm25_index import BM25Index
 from .vector_index import VectorIndex
 
+import pickle
+
 # Layer 3 constants
 _RACE_THRESHOLD = 0.10   # minimum normalised score each retriever must clear
 _RACE_PENALTY   = 0.20   # score penalty applied when only one retriever fires
@@ -14,16 +16,38 @@ _TIE_BOOST      = 0.005  # small bump per matching query token in source name
 
 
 class HybridRetriever:
-    def __init__(self, chunks):
+    def __init__(self, chunks, cache_dir=".cache"):
         self.chunks = chunks
         self.embedder = Embedder()
         self.bm25 = BM25Index()
         self.vector_index = VectorIndex(self.embedder)
         
+        from sentence_transformers import CrossEncoder
+        self.cross_encoder = CrossEncoder('cross-encoder/ms-marco-MiniLM-L-6-v2')
+        
+        os.makedirs(cache_dir, exist_ok=True)
+        chunks_cache_path = os.path.join(cache_dir, "chunks.pkl")
+        
+        if os.path.exists(chunks_cache_path):
+            with open(chunks_cache_path, "rb") as f:
+                cached_chunks = pickle.load(f)
+            if len(cached_chunks) == len(chunks):
+                print("Loading retrieval indexes from cache...")
+                self.bm25.load(cache_dir)
+                self.vector_index.load(cache_dir)
+                print("Indexes loaded from cache.")
+                return
+                
         print("Building retrieval indexes...")
         self.bm25.build(chunks)
         self.vector_index.build(chunks)
-        print("Indexes built successfully.")
+        
+        print("Saving indexes to cache...")
+        with open(chunks_cache_path, "wb") as f:
+            pickle.dump(chunks, f)
+        self.bm25.save(cache_dir)
+        self.vector_index.save(cache_dir)
+        print("Indexes built and cached successfully.")
 
     # ------------------------------------------------------------------
     # Layer 3 – retrieval score race
@@ -117,8 +141,8 @@ class HybridRetriever:
             tie_band_boosted.sort(key=lambda x: x[1], reverse=True)
             filtered_scores = tie_band_boosted + rest
 
-        # Get top-K
-        top_k_indices = filtered_scores[:top_k]
+        # Get more candidates for reranking
+        top_k_indices = filtered_scores[:top_k * 2]
 
         results = []
         for idx, score in top_k_indices:
@@ -126,6 +150,15 @@ class HybridRetriever:
             chunk_data['score'] = score
             results.append(chunk_data)
 
+        # ── Layer 5: Cross-Encoder Reranking ────────────────────────────
+        if results:
+            pairs = [[query, res['text']] for res in results]
+            ce_scores = self.cross_encoder.predict(pairs)
+            for res, ce_score in zip(results, ce_scores):
+                res['ce_score'] = float(ce_score)
+            results.sort(key=lambda x: x['ce_score'], reverse=True)
+
+        results = results[:top_k]
         max_score = results[0]['score'] if results else 0.0
         return results, max_score
 

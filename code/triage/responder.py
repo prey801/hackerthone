@@ -8,14 +8,15 @@ from pydantic import BaseModel, Field
 # Structured output schema
 class TriageResponse(BaseModel):
     status: str = Field(description="Must be exactly 'replied' or 'escalated'")
-    product_area: str = Field(description="The specific support category or product area")
-    response: str = Field(description="The user-facing response grounded ONLY in the corpus, or a clear escalation message.")
+    product_area: str = Field(description="The specific support category or product area (e.g. 'Billing', 'Account Access'). DO NOT use file paths for this field.")
+    response: str = Field(description="The user-facing response grounded ONLY in the corpus, or a clear escalation message. You MUST reference the source documentation (e.g. filename or source path) if you use information from it.")
     justification: str = Field(description="Concise routing rationale")
     request_type: str = Field(description="Must be one of: 'product_issue', 'feature_request', 'bug', 'invalid'")
 
 SYSTEM_TEMPLATE = """You are a support triage agent for {domain}.
 Answer ONLY using the provided support documentation excerpts.
 Do NOT use any outside knowledge or invent policies.
+If you use information from the provided documentation, you MUST reference the source (e.g., the source filename) in your response.
 If the documentation does not cover the issue, say so clearly and escalate.
 
 The risk assessor has flagged this ticket as: {risk_level} risk.

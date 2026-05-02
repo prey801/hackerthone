@@ -38,7 +38,7 @@ class Pipeline:
             return output, context
             
         # 2. Detect Domain
-        domain, conf = detect_domain(company, f"{subject} {issue}")
+        domain, conf = detect_domain(company, f"{subject} {issue}", embedder=self.retriever.embedder)
         context["domain"] = domain
         
         # 3. Retrieve chunks
@@ -47,7 +47,7 @@ class Pipeline:
         context["chunks"] = chunks
         
         # 4. Assess Risk
-        risk_info = assess_risk(issue, domain, max_score)
+        risk_info = assess_risk(issue, domain, max_score, embedder=self.retriever.embedder)
         context["risk_info"] = risk_info
 
         # 4b. Escalation gate — short-circuit before touching the LLM

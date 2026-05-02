@@ -1,3 +1,6 @@
+import os
+import pickle
+import re
 from rank_bm25 import BM25Okapi
 
 class BM25Index:
@@ -14,9 +17,17 @@ class BM25Index:
         if tokenized_corpus:
             self.bm25 = BM25Okapi(tokenized_corpus)
             
+    def save(self, cache_dir):
+        with open(os.path.join(cache_dir, "bm25.pkl"), "wb") as f:
+            pickle.dump((self.chunks, self.bm25), f)
+            
+    def load(self, cache_dir):
+        with open(os.path.join(cache_dir, "bm25.pkl"), "rb") as f:
+            self.chunks, self.bm25 = pickle.load(f)
+            
     def _tokenize(self, text):
-        # Simple whitespace tokenization, lowercased
-        return text.lower().split()
+        # Improved tokenizer: strips punctuation and lowercases
+        return re.sub(r'[^\w\s]', '', text).lower().split()
         
     def get_scores(self, query):
         if not self.bm25:
