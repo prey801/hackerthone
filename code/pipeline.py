@@ -85,7 +85,24 @@ class Pipeline:
                 "claude": "Claude",
                 "visa": "Visa"
             }
-            product_area = domain_display.get(domain, domain or "Unknown")
+            base_domain = domain_display.get(domain, domain or "Unknown")
+            
+            category_suffix_map = {
+                "financial_fraud": "Consumer Fraud",
+                "account_access": "Account Access",
+                "assessment_integrity": "Assessment Integrity",
+                "security": "Security",
+                "legal_privacy": "Privacy and Legal",
+                "low_confidence": "General Support"
+            }
+            
+            risk_cat = risk_info.get("risk_category")
+            if risk_cat == "billing_disputes":
+                cat_suffix = "Billing and Payments" if domain == "hackerrank" else "Billing and Disputes"
+            else:
+                cat_suffix = category_suffix_map.get(risk_cat, "General Support")
+                
+            product_area = f"{base_domain} / {cat_suffix}"
 
             output = {
                 "status": "escalated",
