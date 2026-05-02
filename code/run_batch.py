@@ -39,7 +39,17 @@ def main():
         subject = row['subject']
         company = row['company']
         
-        output, context = pipeline.process_ticket(issue, subject, company)
+        try:
+            output, context = pipeline.process_ticket(issue, subject, company)
+        except Exception as e:
+            output = {
+                "status": "escalated",
+                "product_area": "unknown",
+                "response": "An error occurred processing this ticket.",
+                "justification": f"Processing error: {str(e)}",
+                "request_type": "invalid"
+            }
+            context = {"domain": "unknown", "chunks": [], "risk_info": {}}
         
         # Only the 5 evaluated columns go into output.csv
         full_row = {
