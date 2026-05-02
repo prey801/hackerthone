@@ -52,12 +52,30 @@ class Pipeline:
 
         # 4b. Escalation gate — short-circuit before touching the LLM
         if risk_info["should_escalate"]:
+            category = risk_info.get("risk_category")
+            
+            risk_to_type = {
+                "financial_fraud": "product_issue",
+                "assessment_integrity": "product_issue", 
+                "billing_disputes": "product_issue",
+                "security": "bug",
+                "legal_privacy": "product_issue",
+                "account_access": "product_issue",
+                "low_confidence": "product_issue"
+            }
+            req_type = risk_to_type.get(category, "product_issue")
+            
+            if category == "low_confidence":
+                response_msg = "We couldn't find specific documentation covering your issue. A human agent will review and respond shortly."
+            else:
+                response_msg = "This ticket has been escalated to a human agent for review due to risk policies."
+
             output = {
                 "status": "escalated",
                 "product_area": domain or "unknown",
-                "response": "This ticket has been escalated to a human agent for review.",
+                "response": response_msg,
                 "justification": risk_info["reason"],
-                "request_type": "escalation"
+                "request_type": req_type
             }
             return output, context
 
